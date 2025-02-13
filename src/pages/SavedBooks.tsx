@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Button, Row, Col } from 'react-bootstrap';
 
-import { getMe } from '../utils/API';
+
 import Auth from '../utils/auth';
 import { removeBookId } from '../utils/localStorage';
-import type { User } from '../models/User';
+import type { User } from '../interfaces/User';
 
 import { useMutation, useQuery } from '@apollo/client';
 import { REMOVE_BOOK } from '../utils/mutations';
@@ -12,15 +12,17 @@ import { QUERY_ME } from '../utils/queries';
 
 const SavedBooks = () => {
   const [userData, setUserData] = useState<User>({
+    _id: '',
     username: '',
     email: '',
     password: '',
     savedBooks: [],
   });
 
-  const { loading, data } = useQuery(QUERY_ME);
+  const { data } = useQuery(QUERY_ME);
+  // const [ login, { error }] = useMutation(LOGIN_USER)
 
-  const [removeBook] = useMutation(REMOVE_BOOK, { refetchQueries:})
+  const [removeBook] = useMutation(REMOVE_BOOK, { refetchQueries: QUERY_ME})
 
   // use this to determine if `useEffect()` hook needs to run again
   const userDataLength = Object.keys(userData).length;
@@ -34,14 +36,9 @@ const SavedBooks = () => {
           return false;
         }
 
-        const response = await getMe(token);
+        const response = await data.user
 
-        if (!response.ok) {
-          throw new Error('something went wrong!');
-        }
-
-        const user = await response.json();
-        setUserData(user);
+        setUserData(response);
       } catch (err) {
         console.error(err);
       }
@@ -58,15 +55,13 @@ const SavedBooks = () => {
       return false;
     }
 
+    const user = await data?.user
+    const removeKey = { userId: user.id, bookId: bookId}
+
     try {
-      const response = await deleteBook(bookId, token);
+      const response = await removeBook({variables: removeKey});
 
-      if (!response.ok) {
-        throw new Error('something went wrong!');
-      }
-
-      const updatedUser = await response.json();
-      setUserData(updatedUser);
+      setUserData(response);
       // upon success, remove book's id from localStorage
       removeBookId(bookId);
     } catch (err) {
